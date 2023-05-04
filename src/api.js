@@ -116,7 +116,6 @@ export const updateUserApi = async (req, res) => {
       // updating user data
       db.find((user) => {
         if (user.email === email) {
-          console.log("user", user);
           name ? (user.name = name) : null;
           age ? (user.age = age) : null;
           newEmail ? (user.email = newEmail) : null;
