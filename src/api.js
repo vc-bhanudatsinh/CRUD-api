@@ -1,6 +1,12 @@
 import * as url from "url";
 import * as helper from "./helper.js";
 
+/**
+ * @function getSingleUserApi - GET single user data from db
+ * @param {object} req - request from client
+ * @param {object} res - response to send to client
+ * @returns {promise}
+ */
 export const getSingleUserApi = async (req, res) => {
   try {
     const urlParser = url.parse(req.url);
@@ -19,10 +25,16 @@ export const getSingleUserApi = async (req, res) => {
   }
 };
 
+/**
+ * @function getAllUsersApi - GET all users data from db
+ * @param {object} req - request from client
+ * @param {object} res - request from client
+ * @returns {promise}
+ */
 export const getAllUsersApi = async (req, res) => {
   try {
-    let db = await helper.getFileData(res);
-    res.statusCode = 200;
+    // read data from db file
+    const db = await helper.getFileData(res);
     res.end(JSON.stringify(db));
   } catch (error) {
     console.log("error", error);
@@ -30,17 +42,34 @@ export const getAllUsersApi = async (req, res) => {
   }
 };
 
+/**
+ * @function deleteUserApi - DELETE user by email
+ * @param {object} req - request from client
+ * @param {object} res - response to send to client
+ * @returns {promise}
+ */
 export const deleteUserApi = async (req, res) => {
   try {
     const urlParser = url.parse(req.url);
     const query = urlParser.query;
+
+    // check for any params
     if (!query) return helper.handleResponseSend(res, "No params Found", 404);
+
+    // convert string params into object
     const queryJson = helper.getQueryJson(query);
+
+    // check for email in params
     if (!queryJson.email)
       return helper.handleResponseSend(res, "params are incorrect", 409);
+
+    // read db data from file
     let db = await helper.getFileData(res);
+
+    // delete user by email id
     db = db.filter((user) => user.email !== queryJson.email);
-    console.log("db", db);
+
+    // write updated data in db
     await helper.writeDataInDb(JSON.stringify(db), res);
     return helper.handleResponseSend(res, "User deleted Successfully", 200);
   } catch (error) {
@@ -49,28 +78,42 @@ export const deleteUserApi = async (req, res) => {
   }
 };
 
+/**
+ * @function updateUserApi - UPDATE user data by email
+ * @param {object} req - request from client
+ * @param {object} res - response to send to client
+ * @returns {promise}
+ */
 export const updateUserApi = async (req, res) => {
   try {
+    // event listener on request containing data
     req.on("data", async (data) => {
       data = JSON.parse(data.toString());
       const { email, name, age, newEmail } = data;
-      console.log(email, age, name, newEmail);
+
+      // check for body params
       if (!email || (!name && !newEmail && !age))
         return helper.handleResponseSend(
           res,
           "Some Body parameters are missing",
           404
         );
-      let db = await helper.getFileData(res);
+      // get data from db
+      const db = await helper.getFileData(res);
+
+      // check for user email in db
       const isEmailPresent = db.find((user) => user.email === email);
-      console.log("isEmailPresent", isEmailPresent);
       if (!isEmailPresent)
+        // send error if email not found in db
         return helper.handleResponseSend(res, "Email Id not found", 404);
-      if (newEmail) {
-        const isEmailUnique = db.find((user) => user.email === newEmail);
-        if (isEmailUnique)
-          return helper.handleResponseSend(res, "Duplicate new Email Id", 409);
-      }
+
+      // check for new email in db
+      const isEmailUnique = db.find((user) => user.email === newEmail);
+      if (newEmail && isEmailUnique)
+        // error if new email already exist in db
+        return helper.handleResponseSend(res, "Duplicate new Email Id", 409);
+
+      // updating user data
       db.find((user) => {
         if (user.email === email) {
           console.log("user", user);
@@ -79,7 +122,8 @@ export const updateUserApi = async (req, res) => {
           newEmail ? (user.email = newEmail) : null;
         }
       });
-      console.log("db", db);
+
+      // writing updated data in db file
       await helper.writeDataInDb(JSON.stringify(db), res);
       return helper.handleResponseSend(res, "User Updated Successfully", 200);
     });
@@ -89,23 +133,39 @@ export const updateUserApi = async (req, res) => {
   }
 };
 
+/**
+ * @function createUserApi - CREATE user in db
+ * @param {object} req
+ * @param {object} res
+ * @returns {promise}
+ */
 export const createUserApi = async (req, res) => {
   try {
     req.on("data", async (data) => {
       data = JSON.parse(data.toString());
       const { email, name, age } = data;
+
+      // check for proper body params
       if (!email || !name || !age)
         return helper.handleResponseSend(
           res,
           "Some Body parameters are missing",
           404
         );
-      let db = await helper.getFileData(res);
+
+      // reading file data from db
+      const db = await helper.getFileData(res);
+
+      // check for email already exist in db
       const isEmailUnique = db.find((user) => user.email === email);
       if (isEmailUnique)
+        // send error message for duplicate email
         return helper.handleResponseSend(res, "Duplicate Email Id", 409);
+
+      // push new user in db data
       db.push({ email, name, age });
-      console.log("db", db);
+
+      // writing updated data in db file
       await helper.writeDataInDb(JSON.stringify(db), res);
       return helper.handleResponseSend(res, "User added Successfully", 200);
     });
